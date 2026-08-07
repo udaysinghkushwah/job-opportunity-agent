@@ -1,251 +1,234 @@
-# AI Job Opportunity Agent — Technical Architecture & Code-Level Deep Dive 🧠💻
+# 🧠 Technical Architecture & Code-Level Deep Dive
 
-This document provides a comprehensive, code-level architectural breakdown of the **AI Job Opportunity Agent**. It details the inner workings of the multi-agent pipeline, code structures, data schemas, LLM prompt engineering, fallback mechanisms, and the Angular 17 UI integration.
+> [!NOTE]
+> This document provides a comprehensive code-level architectural breakdown of the **AI Job Opportunity Agent**. It covers the event-driven micro-agent state machine, data schemas, LLM prompt engineering, fallback resilience, and the Angular 17 SPA integration.
 
 ---
 
-## 📐 1. System Architecture Overview
+## 📐 1. System Architecture Diagram
 
-The system is designed as an **Event-Driven Micro-Agent State Machine**. Incoming email events (via IMAP live inbox polling or HTTP webhooks) trigger a sequential pipeline of 8 specialized agents.
+The system operates as an **Event-Driven Micro-Agent State Machine**. Incoming email events from the Gmail IMAP Watcher or HTTP Workbench trigger an automated, multi-stage pipeline.
 
-```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                                 INCOMING EMAIL EVENT                                   │
-│            (Gmail IMAP Watcher / HTTP Workbench / Webhook Ingestion)                   │
-└───────────────────────────────────────────┬────────────────────────────────────────────┘
-                                            │
-                                            ▼
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                              WORKFLOW ENGINE (State Machine)                           │
-│                                                                                        │
-│  [1. EmailListener] ➔ [2. EmailAnalysis] ➔ [3. DecisionEngine]                       │
-│                                                   │                                    │
-│                         ┌─────────────────────────┴─────────────────────────┐          │
-│                         │ Action == AUTO_REPLY                              │          │
-│                         ▼                                                   ▼          │
-│             [4. ResumeSelector]                                      [Short Circuit]   │
-│                     │                                              (Spam / Rejected)   │
-│                     ▼                                                                  │
-│             [5. ReplyGenerator]                                                        │
-│                     │                                                                  │
-│                     ▼                                                                  │
-│             [6. EmailSender]                                                           │
-│                     │                                                                  │
-│                     ▼                                                                  │
-│             [7. CalendarAgent]                                                         │
-│                     │                                                                  │
-│                     ▼                                                                  │
-│             [8. NotifierAgent] ─────────────────────────────────────────────────────────┼───┐
-└────────────────────────────────────────────────────────────────────────────────────────┘   │
-                                                                                             │
-                                                                                             ▼
-┌────────────────────────────────────────────────────────────────────────────────────────┐  SSE Stream
-│                           PERSISTENCE & REAL-TIME DASHBOARD                            │  Broadcaster
-│                                                                                        │   │
-│  MongoDB Atlas Persistence  ◄────────  RxJS EventSource SSE Stream  ◄──────────────────┘
-│  (Mongoose Schema Model)               (Angular Standalone UI on :4200)                │
-└────────────────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Ingestion ["📬 Ingestion Layer"]
+        A[Gmail IMAP Watcher 15s] -->|Raw Email| B[EmailListenerAgent]
+        A2[Angular Email Simulator] -->|REST Payload| B
+    end
+
+    subgraph Pipeline ["⚙️ 8-Stage Agent State Machine"]
+        B -->|Initialize State| C[EmailAnalysisAgent]
+        C -->|Extract Structured JSON| D[DecisionAgent]
+        
+        D -->|Spam / Reject| D1[Short-Circuit: REJECT_IGNORE]
+        D -->|Legitimate Inquiry| E[ResumeSelectorAgent]
+        
+        E -->|Match Domain PDF| F[ReplyGeneratorAgent]
+        F -->|Draft Contextual Reply| G[EmailSenderAgent]
+        G -->|SMTP Send + PDF Attachment| H[CalendarAgent]
+        H -->|Book Google Calendar| I[NotifierAgent]
+    end
+
+    subgraph StorageUI ["🗄️ Persistence & Telemetry Layer"]
+        I -->|Save State| J[(MongoDB Atlas)]
+        I -->|Broadcast SSE Event| K[RxJS EventSource Stream]
+        K -->|Real-Time Telemetry| L[Angular 17 SPA Dashboard]
+    end
+
+    style Ingestion fill:#1e293b,stroke:#3b82f6,color:#fff
+    style Pipeline fill:#0f172a,stroke:#10b981,color:#fff
+    style StorageUI fill:#1e1b4b,stroke:#8b5cf6,color:#fff
 ```
 
 ---
 
-## 🤖 2. Code-Level Deep Dive: The 8 Micro-Agents
+## 🔄 2. End-to-End Sequence Workflow
 
-Each agent is implemented as a standalone TypeScript class extending or executing single-responsibility functions, operating on a shared, strongly-typed state object (`WorkflowState`).
+The sequence diagram below illustrates the exact execution path and inter-agent communication when a recruiter email arrives.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Recruiter as 📧 Recruiter / Gmail Inbox
+    participant Watcher as 📡 Gmail IMAP Watcher
+    participant Listener as 👂 EmailListenerAgent
+    participant Analyzer as 🔍 EmailAnalysisAgent
+    participant LLM as 🤖 Gemini LLM API
+    participant Decision as ⚖️ DecisionAgent
+    participant Resume as 📄 ResumeSelectorAgent
+    participant Sender as 📤 EmailSenderAgent
+    participant Mongo as 🗄️ MongoDB Atlas
+    participant SSE as 📡 SSE Stream / UI
+
+    Recruiter->>Watcher: Send Opportunity Email
+    Watcher->>Listener: Trigger Email Ingest
+    Listener->>Analyzer: Forward Raw Email Payload
+    Analyzer->>LLM: Prompt LLM for Structured Extraction
+    LLM-->>Analyzer: Return JSON (Company, Recruiter, Role, Date)
+    Analyzer->>Decision: Send Extracted Context
+    
+    alt Legitimate Recruiter Inquiry
+        Decision->>Resume: Trigger AUTO_REPLY Path
+        Resume->>Resume: Match Regex Keywords to Domain PDF
+        Resume->>Sender: Attach resume_backend.pdf & Draft Reply
+        Sender->>Recruiter: Deliver SMTP Auto-Reply + PDF Attachment
+        Sender->>Mongo: Persist Completed Opportunity
+        Sender->>SSE: Broadcast PIPELINE_COMPLETE Event
+    else Spam / Marketing Email
+        Decision->>Mongo: Log REJECT_IGNORE Short-Circuit
+        Decision->>SSE: Broadcast PIPELINE_SHORT_CIRCUIT Event
+    end
+```
 
 ---
 
-### Agent 1: Email Listener Agent ([`agents/listener.agent.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/agents/listener.agent.ts))
-- **Primary Responsibility**: Ingests raw email payloads (From header, Subject, Body, Timestamp, Message-ID) and initializes the `WorkflowState`.
-- **Key Functions**:
-  - `ingestEmail(rawPayload: RawEmailPayload): WorkflowState`
-  - Assigns unique `opportunityId` (`opp_<timestamp>_<hash>`).
-  - Sets initial pipeline status to `INGESTED`.
-  - Emits telemetry event `AGENT_START: EmailListenerAgent`.
+## 🔀 3. Decision Engine Policy Logic
+
+The `DecisionAgent` evaluates rules to dictate whether an incoming email should trigger an automated reply or be ignored.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Ingested
+    Ingested --> AnalysisComplete
+    
+    state AnalysisComplete {
+        [*] --> CheckType
+        CheckType --> SpamDetected: Type == Spam_Marketing
+        CheckType --> InquiryDetected: Type == Interview / Job_Offer / General_Inquiry
+    }
+
+    SpamDetected --> ShortCircuitIgnore: Action = REJECT_IGNORE
+    InquiryDetected --> CheckCTC: Check Salary Thresholds
+    
+    CheckCTC --> AutoReplyApproved: CTC Valid / Standard Role
+    CheckCTC --> ManualUserReview: CTC Flagged / Out of Bounds
+    
+    AutoReplyApproved --> [*]: Action = AUTO_REPLY
+    ManualUserReview --> [*]: Action = ASK_USER
+    ShortCircuitIgnore --> [*]: Stop Pipeline
+```
 
 ---
 
-### Agent 2: Email Analysis Agent ([`agents/analyzer.agent.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/agents/analyzer.agent.ts))
-- **Primary Responsibility**: Uses Gemini LLM to parse unstructured email bodies into structured JSON data.
-- **Extracted Schema**:
-  ```typescript
-  interface ExtractedOpportunity {
-    company: string;
-    recruiterName: string;
-    role: string;
-    type: 'Interview' | 'Job_Offer' | 'General_Inquiry' | 'Spam_Marketing';
-    ctc?: string;
-    location?: string;
-    jdSummary: string;
-    resumeRequested: boolean;
-    interviewDateProposed?: string;
+## 🤖 4. Code-Level Deep Dive: The 8 Micro-Agents
+
+> [!IMPORTANT]
+> Each agent operates on a strongly-typed, immutable execution context (`WorkflowState`), ensuring state predictability and fault isolation.
+
+---
+
+### Agent 1: Email Listener Agent
+- **Source File**: [`agents/listener.agent.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/agents/listener.agent.ts)
+- **Role**: Entry point for email ingestion. Initializes unique IDs and logs the starting telemetry state.
+
+```typescript
+export class EmailListenerAgent {
+  static ingest(rawPayload: RawEmailPayload): WorkflowState {
+    const opportunityId = `opp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    return {
+      opportunityId,
+      rawPayload,
+      status: 'INGESTED',
+      logs: [`[Agent: EmailListenerAgent] Ingested payload from ${rawPayload.from}`],
+      createdAt: new Date()
+    };
   }
-  ```
-- **Smart Recruiter Name Extraction Logic**:
-  To prevent greetings like `Hi Uday,` from accidentally setting `recruiterName = "Uday"` (candidate name), the fallback parser applies a 3-tier heuristic:
-  1. **Signature Parsing**: Checks email bottom sign-offs (`Best, Reecha`, `Regards, Pooja`, `Thanks, John`).
-  2. **Header Parsing**: Extracts display name from `From:` header (`"Pooja Kushwah" <pooja@gmail.com>`).
-  3. **Fallback Prefix**: Sanitizes email address prefix (`pooja.kushwah`).
+}
+```
 
 ---
 
-### Agent 3: Decision Making Agent ([`agents/decision.agent.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/agents/decision.agent.ts))
-- **Primary Responsibility**: Evaluates policy rules to determine the pipeline execution path (`AUTO_REPLY`, `ASK_USER`, `REJECT_IGNORE`).
-- **Policy Rules**:
-  - If `type === 'Spam_Marketing'` or email body contains unsubscribed marketing links ➔ `REJECT_IGNORE` (Pipeline short-circuits).
-  - If `type === 'Interview'` or `type === 'Job_Offer'` or `type === 'General_Inquiry'` (Legitimate recruiter inquiry) ➔ `AUTO_REPLY`.
-  - If CTC or requirements are outside predefined safety thresholds ➔ `ASK_USER`.
+### Agent 2: Email Analysis Agent
+- **Source File**: [`agents/analyzer.agent.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/agents/analyzer.agent.ts)
+- **Role**: Invokes Gemini LLM to convert raw body text into structured JSON metadata.
+
+> [!TIP]
+> **Recruiter Name Extraction Algorithm**:
+> To prevent candidate greetings (e.g., `Hi Uday,`) from incorrectly overwriting `recruiterName`, the analyzer uses a 3-tier regex parser:
+> 1. **Bottom Sign-Off**: Checks sign-offs (`Best, Reecha`, `Regards, Pooja`, `Thanks, John`).
+> 2. **From Header**: Extracts display name (`"Pooja Kushwah" <pooja@gmail.com>`).
+> 3. **Sanitized Prefix**: Extracts sanitized email username (`pooja.kushwah`).
 
 ---
 
-### Agent 4: Resume Selection Agent ([`agents/resume-selector.agent.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/agents/resume-selector.agent.ts))
-- **Primary Responsibility**: Matches role titles and JD keywords against candidate domain PDF resumes using word-boundary regex patterns (`\bkeyword\b`).
-- **Category Matrix**:
-  - **AI / ML**: `AI`, `Machine Learning`, `LLM`, `Deep Learning`, `Python`, `PyTorch` ➔ `resume_ai.pdf`
-  - **Backend / Systems**: `Node.js`, `TypeScript`, `Golang`, `Backend`, `Distributed`, `Microservices` ➔ `resume_backend.pdf`
-  - **Healthcare / Biotech**: `Healthcare`, `Biotech`, `Clinical`, `HIPAA`, `Medical` ➔ `resume_healthcare.pdf`
-  - **Leadership / Management**: `Lead`, `Architect`, `Director`, `Manager`, `VP`, `Head` ➔ `resume_leadership.pdf`
-- **Fallback**: Defaults to `resume_backend.pdf` if no specific keywords match.
+### Agent 3: Decision Making Agent
+- **Source File**: [`agents/decision.agent.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/agents/decision.agent.ts)
+- **Role**: Evaluates policy rules and decides the pipeline path (`AUTO_REPLY`, `ASK_USER`, `REJECT_IGNORE`).
 
 ---
 
-### Agent 5: Reply Generator Agent ([`agents/reply-generator.agent.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/agents/reply-generator.agent.ts))
-- **Primary Responsibility**: Generates a professional, context-aware email response under 100 words.
-- **LLM Prompt Engineering**:
-  - Dynamically addresses the recruiter by name (`Hi [RecruiterName]`).
-  - Mentions specific role title and company name.
-  - Confirms PDF resume attachment.
-  - Acknowledges proposed interview dates or offers available availability.
-  - Formats candidate sign-off (`Best regards,\nUday Singh Kushwah`).
+### Agent 4: Resume Selection Agent
+- **Source File**: [`agents/resume-selector.agent.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/agents/resume-selector.agent.ts)
+- **Role**: Matches domain keywords against candidate PDF resume categories using strict word-boundary regex (`\bkeyword\b`).
 
----
-
-### Agent 6: Email Sending Agent ([`agents/email-sender.agent.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/agents/email-sender.agent.ts))
-- **Primary Responsibility**: Dispatches the auto-reply via Nodemailer Gmail API / SMTP transport.
-- **Attachment Injection**: Loads the selected PDF resume from `storage/resumes/<selected_resume>.pdf` and attaches it to the SMTP MIME message payload.
-- **Safety Checks**: Verifies recipient email is valid and suppresses auto-replies to mailer-daemons or system bounce addresses.
-
----
-
-### Agent 7: Calendar Booking Agent ([`agents/calendar.agent.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/agents/calendar.agent.ts))
-- **Primary Responsibility**: If `interviewDateProposed` is present in the opportunity context, calls `CalendarTool` to generate a Google Calendar event.
-- **Output**: Returns Google Calendar event URL (`https://calendar.google.com/calendar/event?eid=...`) and appends it to state context.
-
----
-
-### Agent 8: Notification Agent ([`agents/notifier.agent.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/agents/notifier.agent.ts))
-- **Primary Responsibility**: Broadcasts final pipeline execution outcome across multi-channel sinks:
-  1. **MongoDB Atlas**: Saves/updates the complete `Opportunity` document.
-  2. **SSE Stream Server**: Emits live telemetry event `PIPELINE_COMPLETE` to all connected UI clients.
-  3. **Slack / Telegram**: Dispatches webhook notification summary.
-
----
-
-## 🗄️ 3. Persistence & Service Layer
-
-### 1. MongoDB Service ([`services/mongodb.service.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/services/mongodb.service.ts))
-- Connects to MongoDB Atlas using Mongoose ODM.
-- **Mongoose Schema (`Opportunity`)**:
-  ```typescript
-  const OpportunitySchema = new Schema({
-    opportunityId: { type: String, required: true, unique: true },
-    recruiterEmail: String,
-    recruiterName: String,
-    company: String,
-    role: String,
-    type: String,
-    status: String,
-    attachedResume: String,
-    generatedReply: String,
-    calendarEventUrl: String,
-    logs: [String],
-    createdAt: { type: Date, default: Date.now }
-  });
-  ```
-- **Fault-Tolerant In-Memory Fallback**: If MongoDB connection fails or is offline, the service transparently switches to an in-memory repository array so pipeline execution never crashes.
-
----
-
-### 2. Real-Time SSE Stream Service ([`services/sse.service.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/services/sse.service.ts))
-- Implements Server-Sent Events (SSE) protocol over HTTP.
-- Exposes endpoint `GET /api/stream`.
-- Maintains active client response array (`res.write('data: ...\n\n')`).
-- Broadcasts real-time step logs, node activations, and state changes to the Angular frontend.
-
----
-
-## 🛠️ 4. Tools & Integrations Layer
-
-| Tool | Source File | Functionality |
+| Domain Category | Regex Trigger Keywords | Output Resume File |
 | :--- | :--- | :--- |
-| **LLMTool** | [`tools/llm.tool.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/tools/llm.tool.ts) | Integrates `@google/genai` Gemini 2.0 API. Includes fallback mock engine when API rate limit (429) occurs. |
-| **GmailTool** | [`tools/gmail.tool.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/tools/gmail.tool.ts) | Provides Nodemailer SMTP email dispatch and `imap-simple` background polling watcher (15s interval). |
-| **CalendarTool** | [`tools/calendar.tool.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/tools/calendar.tool.ts) | Generates Google Calendar event URLs and schedules meeting slots. |
-| **NotificationTool** | [`tools/notification.tool.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/tools/notification.tool.ts) | Formats and dispatches notification payloads to external webhooks and SSE listeners. |
+| **AI / Machine Learning** | `AI`, `Machine Learning`, `LLM`, `Deep Learning`, `Python`, `PyTorch` | `resume_ai.pdf` |
+| **Backend / Distributed** | `Node.js`, `TypeScript`, `Golang`, `Backend`, `Microservices` | `resume_backend.pdf` |
+| **Healthcare / Biotech** | `Healthcare`, `Biotech`, `Clinical`, `HIPAA`, `Medical` | `resume_healthcare.pdf` |
+| **Leadership / Executive** | `Lead`, `Architect`, `Director`, `Manager`, `VP`, `Head` | `resume_leadership.pdf` |
 
 ---
 
-## 🎨 5. Angular Standalone UI Architecture (`apps/web/`)
-
-The frontend is an Angular 17 Single Page Application (SPA) designed with a modular component architecture:
-
-```
-apps/web/src/app/components/
-├── header/               # Displays candidate profile status & manual trigger buttons
-├── agent-graph/           # SVG/CSS animated 8-node state machine execution visualizer
-├── email-simulator/       # Test workbench with recruiter email presets
-├── opportunity-list/      # Real-time data table of MongoDB records & detailed modal
-└── agent-console/         # Live terminal streaming SSE telemetry logs
-```
-
-### Component Data Flow & Services:
-1. **`AgentStreamService`** ([`apps/web/src/app/services/agent-stream.service.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/apps/web/src/app/services/agent-stream.service.ts)):
-   - Connects to `/api/stream` via native `EventSource`.
-   - Converts SSE stream events into RxJS Observables (`stream$`, `activeAgent$`).
-2. **`OpportunityService`** ([`apps/web/src/app/services/opportunity.service.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/apps/web/src/app/services/opportunity.service.ts)):
-   - Performs REST API calls (`GET /api/opportunities`, `POST /api/simulate-email`).
-3. **`Proxy Configuration`** ([`apps/web/proxy.conf.json`](file:///Users/uday/Documents/AI/job-opportunity-agent/apps/web/proxy.conf.json)):
-   - Routes `/api/*` from Angular dev server (`localhost:4200`) to backend Express API (`localhost:3010`).
+### Agent 5: Reply Generator Agent
+- **Source File**: [`agents/reply-generator.agent.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/agents/reply-generator.agent.ts)
+- **Role**: Prompts Gemini LLM to construct a personalized, context-aware email under 100 words.
 
 ---
 
-## 🔄 6. Complete End-to-End Workflow Trace
+### Agent 6: Email Sending Agent
+- **Source File**: [`agents/email-sender.agent.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/agents/email-sender.agent.ts)
+- **Role**: Dispatches the auto-reply via Nodemailer SMTP with the matched PDF resume attached.
 
-When an email arrives from recruiter `pooja@abc-tech.com`:
+---
 
-```
-1. [InboxWatcher] Detects new unread email from pooja@abc-tech.com
-   │
-2. [EmailListenerAgent] Creates opportunity record "opp_178612..." with status "INGESTED"
-   │
-3. [EmailAnalysisAgent] Invokes LLM -> Parses:
-   │  - Company: "Abc-Tech"
-   │  - Role: "Senior Node.js Engineer"
-   │  - Recruiter: "Pooja" (Parsed from "Best, Pooja" sign-off)
-   │  - Type: "Interview"
-   │  - InterviewDate: "Tomorrow at 3 PM"
-   │
-4. [DecisionAgent] Evaluates rules -> Decision: AUTO_REPLY
-   │
-5. [ResumeSelectorAgent] Matches keywords "Node.js" -> Selects: "resume_backend.pdf"
-   │
-6. [ReplyGeneratorAgent] Generates reply:
-   │  "Hi Pooja, Thank you for reaching out regarding the Senior Node.js Engineer role at Abc-Tech..."
-   │
-7. [EmailSenderAgent] Connects to Gmail SMTP -> Attaches "resume_backend.pdf" -> Delivers email
-   │
-8. [CalendarAgent] Parses "Tomorrow at 3 PM" -> Generates Google Calendar event link
-   │
-9. [NotifierAgent] Saves complete record to MongoDB Atlas -> Emits SSE event to Angular Dashboard
+### Agent 7: Calendar Booking Agent
+- **Source File**: [`agents/calendar.agent.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/agents/calendar.agent.ts)
+- **Role**: Detects proposed interview schedules and generates a Google Calendar event link.
+
+---
+
+### Agent 8: Notification Agent
+- **Source File**: [`agents/notifier.agent.ts`](file:///Users/uday/Documents/AI/job-opportunity-agent/agents/notifier.agent.ts)
+- **Role**: Persists the completed opportunity to MongoDB Atlas and emits real-time SSE stream events to the Angular UI.
+
+---
+
+## 🎨 5. Angular UI Component Architecture
+
+The frontend is an Angular 17 Single Page Application (SPA) structured with dedicated standalone components:
+
+```mermaid
+graph TD
+    subgraph AppShell ["📱 Angular Application Shell (AppModule / AppConfig)"]
+        Header[HeaderComponent]
+        Graph[AgentGraphComponent]
+        Simulator[EmailSimulatorComponent]
+        OppList[OpportunityListComponent]
+        Console[AgentConsoleComponent]
+    end
+
+    subgraph Services ["📡 Core Angular Services"]
+        StreamSvc[AgentStreamService RxJS EventSource]
+        HttpSvc[OpportunityService HttpClient]
+    end
+
+    StreamSvc -->|SSE Stream Events| Graph
+    StreamSvc -->|Live Terminal Logs| Console
+    HttpSvc -->|REST Opportunities| OppList
+    HttpSvc -->|POST Simulation| Simulator
 ```
 
 ---
 
-## 🛡️ 7. Resilience, Fallbacks & Error Handling
+## 🛡️ 6. Resiliency & Fallback Matrix
 
-1. **Gemini API Rate Limits (HTTP 429 / Quota Depleted)**:
-   - When Gemini returns `429 RESOURCE_EXHAUSTED`, `LLMTool` automatically catches the error and seamlessly falls back to an internal deterministic mock engine without halting the pipeline.
-2. **MongoDB Connection Failures**:
-   - If network or credentials fail, `MongoDBService` switches to an in-memory repository to guarantee zero request drops.
-3. **Gmail IMAP Reconnection**:
-   - The inbox watcher handles socket disconnects with exponential backoff re-polling every 15 seconds.
+> [!WARNING]
+> Production environments face API rate limits and network degradation. The system implements transparent fallbacks for high availability:
+
+| Failure Scenario | Secondary Fallback Strategy | Resulting Status |
+| :--- | :--- | :--- |
+| **Gemini API 429 Rate Limit** | Automatically switches to deterministic Mock LLM Engine | `SUCCESS` (No pipeline interruption) |
+| **MongoDB Atlas Offline** | Transparently switches to In-Memory Repository Array | `SUCCESS` (Zero request loss) |
+| **Invalid Email Address / Bounce** | Suppresses auto-reply to `mailer-daemon` addresses | `REJECTED` (Prevents loops) |
+| **IMAP Socket Disconnect** | Auto-reconnects with exponential backoff every 15s | `ACTIVE` (Continuous background monitoring) |
