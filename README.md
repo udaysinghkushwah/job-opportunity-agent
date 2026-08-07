@@ -4,6 +4,21 @@ An end-to-end autonomous Agentic AI system built with Node.js, TypeScript, and *
 
 ---
 
+## 📖 Project Description
+
+The **AI Job Opportunity Agent** is an autonomous, multi-agent AI system designed to automate a candidate's recruiter email workflow end-to-end. Built with a modular micro-agent architecture, the system monitors incoming recruiter communications, evaluates business rules, attaches tailored domain PDF resumes, sends personalized auto-replies, books calendar slots, and visualizes live pipeline execution in real time.
+
+### ✨ Key Features & Capabilities:
+- **📬 Real-Time Gmail Inbox Watcher**: Continuously polls incoming emails via IMAP and triggers the multi-agent pipeline automatically.
+- **🧠 Multi-Agent Pipeline Engine**: 8 specialized micro-agents (`Listener`, `Analyzer`, `Decision`, `ResumeSelector`, `ReplyGenerator`, `EmailSender`, `Calendar`, `Notifier`).
+- **📄 Dynamic PDF Resume Selector**: Automatically matches role descriptions against domain PDF resumes (`AI`, `Backend`, `Healthcare`, `Leadership`).
+- **✍️ Context-Aware LLM Auto-Reply**: Dynamically derives smart replies addressing specific recruiter names, company roles, and proposed interview dates.
+- **📅 Google Calendar Booking**: Automatically books Google Calendar interview slots when interview availability is requested.
+- **🗄️ MongoDB Atlas Persistent Memory**: Long-term state persistence for candidate pipeline tracking.
+- **🎨 Angular Web Dashboard**: Dedicated Angular single-page application with real-time SSE execution stream, live agent graph, and email simulator.
+
+---
+
 ## 🛠️ Complete Setup & Installation Guide
 
 ### 📋 1. Prerequisites
