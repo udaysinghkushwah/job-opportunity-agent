@@ -46,23 +46,9 @@ export class DecisionAgent extends BaseAgent {
       };
     }
 
-    if (analysis.resumeRequested) {
-      return {
-        action: 'AUTO_REPLY',
-        reason: 'Legitimate recruiter email requesting updated resume and interview interest.'
-      };
-    }
-
-    if (analysis.type === 'Interview') {
-      return {
-        action: 'AUTO_REPLY',
-        reason: 'Interview scheduling request received from hiring team.'
-      };
-    }
-
     return {
-      action: 'ASK_USER',
-      reason: 'General inquiry without explicit resume request. Flagged for candidate manual review.'
+      action: 'AUTO_REPLY',
+      reason: 'Legitimate recruiter email or job opportunity inquiry.'
     };
   }
 }
