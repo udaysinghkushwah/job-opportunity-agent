@@ -4,7 +4,9 @@ An end-to-end autonomous Agentic AI system built with **Node.js**, **TypeScript*
 
 ---
 
-> 📖 **Looking for Code-Level Architecture & Agent Workflow Details?** Check out the comprehensive **[Technical Architecture & Code Deep Dive](docs/ARCHITECTURE.md)** document!
+> 📖 **Technical Architecture**: Check out the comprehensive **[Technical Architecture & Code Deep Dive](docs/ARCHITECTURE.md)** document!  
+> ✍️ **Medium Article**: Read **[Building an Autonomous Multi-Agent AI System](docs/MEDIUM_BLOG_POST.md)**  
+> 💼 **LinkedIn Post**: Ready-to-share **[LinkedIn Launch Post Content](docs/LINKEDIN_POST.md)**
 
 ---
 
