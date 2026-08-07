@@ -56,9 +56,9 @@ export class EmailAnalysisAgent extends BaseAgent {
     }
 
     // Recruiter Name Extraction:
-    // 1. Check sign-off at bottom of email body (e.g., "Regards, Pooja", "Best, Reecha", "Thanks, John")
-    // 2. Check Sender Display Name from From header (e.g., "Pooja Kushwah <pooja@gmail.com>" -> "Pooja Kushwah")
-    // 3. Check Email Prefix fallback (e.g., "pooja.kushwah2702@gmail.com" -> "Pooja Kushwah")
+    // 1. Check sign-off at bottom of email body (e.g., "Regards, Sarah", "Best, John", "Thanks, Alex")
+    // 2. Check Sender Display Name from From header (e.g., "Jane Smith <jane@techcorp.com>" -> "Jane Smith")
+    // 3. Check Email Prefix fallback (e.g., "jane.smith@techcorp.com" -> "Jane Smith")
     let recruiterName = 'Hiring Manager';
 
     // 1. Check sign-off at bottom of body

@@ -13,7 +13,7 @@ Body:
 Extract the following fields in strict JSON format without additional commentary:
 {
   "company": "Company Name (e.g. Microsoft, Google, FinTech Corp, unknown if not mentioned)",
-  "recruiterName": "Recruiter or Sender Name who WROTE the email (e.g. from sign-off like 'Best, Reecha' or From header display name like 'Pooja Kushwah'). DO NOT extract the candidate's name from 'Hi [Candidate]' as recruiterName!",
+  "recruiterName": "Recruiter or Sender Name who WROTE the email (e.g. from sign-off like 'Best, Sarah' or From header display name like 'Jane Smith'). DO NOT extract the candidate's name from 'Hi [Candidate]' as recruiterName!",
   "role": "Job Role / Title (e.g. Senior Node.js Engineer, AI Architect, unknown)",
   "type": "Classification ('Interview', 'Job_Offer', 'General_Inquiry', 'Spam_Marketing')",
   "ctc": "Offered Compensation / CTC if mentioned (e.g. $180k - $220k or ₹35 LPA, null if not mentioned)",

@@ -120,9 +120,9 @@ export class EmailListenerAgent {
 > [!TIP]
 > **Recruiter Name Extraction Algorithm**:
 > To prevent candidate greetings (e.g., `Hi Uday,`) from incorrectly overwriting `recruiterName`, the analyzer uses a 3-tier regex parser:
-> 1. **Bottom Sign-Off**: Checks sign-offs (`Best, Reecha`, `Regards, Pooja`, `Thanks, John`).
-> 2. **From Header**: Extracts display name (`"Pooja Kushwah" <pooja@gmail.com>`).
-> 3. **Sanitized Prefix**: Extracts sanitized email username (`pooja.kushwah`).
+> 1. **Bottom Sign-Off**: Checks sign-offs (`Best, Sarah`, `Regards, John`, `Thanks, Alex`).
+> 2. **From Header**: Extracts display name (`"Jane Smith" <jane@techcorp.com>`).
+> 3. **Sanitized Prefix**: Extracts sanitized email username (`jane.smith`).
 
 ---
 
