@@ -4,11 +4,11 @@ import { Subscription } from 'rxjs';
 import { OpportunityService } from './services/opportunity.service';
 import { AgentStreamService } from './services/agent-stream.service';
 import { Opportunity, EmailSimulationPayload, AgentStepEvent } from './models/opportunity.model';
-import { HeaderComponent } from './components/header.component';
-import { AgentGraphComponent } from './components/agent-graph.component';
-import { EmailSimulatorComponent } from './components/email-simulator.component';
-import { OpportunityListComponent } from './components/opportunity-list.component';
-import { AgentConsoleComponent, ConsoleLogEntry } from './components/agent-console.component';
+import { HeaderComponent } from './components/header/header.component';
+import { AgentGraphComponent } from './components/agent-graph/agent-graph.component';
+import { EmailSimulatorComponent } from './components/email-simulator/email-simulator.component';
+import { OpportunityListComponent } from './components/opportunity-list/opportunity-list.component';
+import { AgentConsoleComponent, ConsoleLogEntry } from './components/agent-console/agent-console.component';
 
 @Component({
   selector: 'app-root',
@@ -32,7 +32,7 @@ export class AppComponent implements OnInit, OnDestroy {
     {
       timestamp: new Date().toLocaleTimeString(),
       type: 'system',
-      message: 'Fresh Angular Standalone Multi-Agent Dashboard initialized. Connected to SSE Telemetry Stream.'
+      message: 'Modular Angular Multi-Agent Dashboard initialized. Connected to SSE Telemetry Stream.'
     }
   ];
 

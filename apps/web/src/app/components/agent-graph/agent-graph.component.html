@@ -1,0 +1,16 @@
+<section class="card graph-card">
+  <div class="card-header">
+    <h2>⚡ Live Multi-Agent Execution Graph</h2>
+    <span class="graph-status">{{ activeAgentStatusText }}</span>
+  </div>
+  <div class="pipeline-graph">
+    <ng-container *ngFor="let node of nodes; let last = last">
+      <div class="node" [ngClass]="node.status">
+        <div class="node-icon">{{ node.icon }}</div>
+        <div class="node-title">{{ node.title }}</div>
+        <div class="node-sub">{{ node.sub }}</div>
+      </div>
+      <div *ngIf="!last" class="connector" [class.active]="node.status === 'active' || node.status === 'complete'"></div>
+    </ng-container>
+  </div>
+</section>

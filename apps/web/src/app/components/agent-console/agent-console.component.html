@@ -1,0 +1,12 @@
+<section class="card logs-card">
+  <div class="card-header">
+    <h3>💻 Real-Time Agent Reasoning & SSE Execution Stream</h3>
+    <button class="btn btn-secondary btn-sm" (click)="onClearLogs()">Clear Console</button>
+  </div>
+  <div class="terminal-log-window">
+    <div *ngFor="let log of logs" class="log-entry" [ngClass]="log.type">
+      <span class="log-time">[{{ log.timestamp }}]</span>
+      <span class="log-msg">{{ log.message }}</span>
+    </div>
+  </div>
+</section>

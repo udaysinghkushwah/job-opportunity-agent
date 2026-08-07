@@ -1,0 +1,46 @@
+<section class="card opps-card">
+  <div class="card-header">
+    <h3>🗄️ Opportunity Pipeline (MongoDB Memory)</h3>
+    <button class="btn btn-secondary btn-sm" (click)="onRefresh()">🔄 Refresh</button>
+  </div>
+  <div class="opps-list">
+    <div *ngIf="opportunities.length === 0" class="empty-state">
+      No opportunities found in MongoDB. Execute a recruiter email simulation to start!
+    </div>
+    <div *ngFor="let opp of opportunities" class="opp-item" (click)="onSelectOpportunity(opp)">
+      <div class="opp-main">
+        <div class="opp-company">{{ opp.company }}</div>
+        <div class="opp-role">{{ opp.role }}</div>
+        <div class="opp-recruiter">Recruiter: {{ opp.recruiterName }}</div>
+      </div>
+      <div class="opp-meta">
+        <span class="status-pill" [ngClass]="opp.status.toLowerCase()">{{ opp.status }}</span>
+        <span *ngIf="opp.resumeVersion" class="resume-tag">📄 {{ opp.resumeVersion }}</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Detail Inspection Modal -->
+<div class="modal-overlay" *ngIf="selectedOpp" (click)="closeModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Opportunity Detail: {{ selectedOpp.company }}</h3>
+      <button class="close-btn" (click)="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <p><strong>Opportunity ID:</strong> {{ selectedOpp.opportunityId }}</p>
+      <p><strong>Recruiter Name:</strong> {{ selectedOpp.recruiterName }}</p>
+      <p><strong>Role Title:</strong> {{ selectedOpp.role }}</p>
+      <p><strong>Status:</strong> <span class="status-pill" [ngClass]="selectedOpp.status.toLowerCase()">{{ selectedOpp.status }}</span></p>
+      <p *ngIf="selectedOpp.resumeVersion"><strong>Selected Resume:</strong> {{ selectedOpp.resumeVersion }}</p>
+      <p *ngIf="selectedOpp.calendarEventUrl">
+        <strong>Calendar Slot:</strong> <a [href]="selectedOpp.calendarEventUrl" target="_blank" class="link">View Google Calendar Event</a>
+      </p>
+      <div *ngIf="selectedOpp.generatedReply" class="reply-box">
+        <div class="reply-header">Generated Auto-Reply Content:</div>
+        <pre>{{ selectedOpp.generatedReply }}</pre>
+      </div>
+    </div>
+  </div>
+</div>
