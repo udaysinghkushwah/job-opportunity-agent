@@ -55,30 +55,30 @@ export class EmailAnalysisAgent extends BaseAgent {
       };
     }
 
-    // Dynamic Recruiter Name extraction:
-    // 1. Try to extract "Hi [Name]" or "Dear [Name]" from body
-    // 2. Or try "Regards, [Name]" / "Best, [Name]"
-    // 3. Fallback to sender's display name or email prefix
+    // Recruiter Name Extraction:
+    // 1. Check sign-off at bottom of email body (e.g., "Regards, Pooja", "Best, Reecha", "Thanks, John")
+    // 2. Check Sender Display Name from From header (e.g., "Pooja Kushwah <pooja@gmail.com>" -> "Pooja Kushwah")
+    // 3. Check Email Prefix fallback (e.g., "pooja.kushwah2702@gmail.com" -> "Pooja Kushwah")
     let recruiterName = 'Hiring Manager';
 
-    // Check greeting in body, e.g., "Hi Alex," or "Hello Sarah,"
-    const greetingMatch = state.rawEmail.body.match(/(?:Hi|Hello|Dear)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i);
-    if (greetingMatch && greetingMatch[1]) {
-      recruiterName = greetingMatch[1].trim();
+    // 1. Check sign-off at bottom of body
+    const signoffMatch = state.rawEmail.body.match(/(?:Regards|Best|Thanks|Sincerely|Cheers|Warm regards|Best regards),\s*\n?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i);
+    if (signoffMatch && signoffMatch[1] && !/uday|candidate/i.test(signoffMatch[1])) {
+      recruiterName = signoffMatch[1].trim();
     } else {
-      const signoffMatch = state.rawEmail.body.match(/(?:Regards|Best|Thanks|Sincerely),\s*\n?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i);
-      if (signoffMatch && signoffMatch[1]) {
-        recruiterName = signoffMatch[1].trim();
+      // 2. Check Sender Display Name from From header
+      const fromStr = state.rawEmail.from || '';
+      const nameMatch = fromStr.match(/^"?([^"<@]+)"?\s*</);
+      if (nameMatch && nameMatch[1].trim()) {
+        const extracted = nameMatch[1].trim().replace(/^"|"$/g, '');
+        if (!/mailer-daemon|noreply|no-reply|system|notifications|groww/i.test(extracted) && !/uday/i.test(extracted)) {
+          recruiterName = extracted;
+        }
       } else {
-        const fromStr = state.rawEmail.from || '';
-        const nameMatch = fromStr.match(/^"?([^"<]+)"?\s*</);
-        if (nameMatch && nameMatch[1].trim()) {
-          recruiterName = nameMatch[1].trim().replace(/^"|"$/g, '');
-        } else {
-          const emailPrefix = fromStr.split('@')[0].replace(/[._-]/g, ' ');
-          if (emailPrefix && emailPrefix.length > 2) {
-            recruiterName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
-          }
+        // 3. Fallback to Email prefix
+        const emailPrefix = fromStr.split('@')[0].replace(/[._-]/g, ' ').replace(/[0-9]/g, '').trim();
+        if (emailPrefix && emailPrefix.length > 2 && !/mailer|noreply/i.test(emailPrefix)) {
+          recruiterName = emailPrefix.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
         }
       }
     }
