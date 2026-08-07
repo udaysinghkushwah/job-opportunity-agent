@@ -1,0 +1,29 @@
+<div class="app-container">
+  <app-header (fetchInboxRequested)="handleFetchInboxRequested()"></app-header>
+
+  <main class="dashboard-main">
+    <app-agent-graph
+      [activeAgentName]="activeAgentName"
+      [activeAgentStatusText]="activeAgentStatusText"
+    ></app-agent-graph>
+
+    <div class="two-column-grid">
+      <div class="column">
+        <app-email-simulator
+          (simulateSubmitted)="handleSimulateSubmitted($event)"
+        ></app-email-simulator>
+      </div>
+      <div class="column">
+        <app-opportunity-list
+          [opportunities]="opportunities"
+          (refreshRequested)="loadOpportunities()"
+        ></app-opportunity-list>
+      </div>
+    </div>
+
+    <app-agent-console
+      [logs]="logs"
+      (clearLogsRequested)="handleClearLogsRequested()"
+    ></app-agent-console>
+  </main>
+</div>

@@ -1,0 +1,27 @@
+.app-container {
+  min-height: 100vh;
+  background: #0b0f19;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.12) 0px, transparent 50%);
+  color: #f8fafc;
+  font-family: 'Outfit', sans-serif;
+}
+
+.dashboard-main {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 24px 32px 24px;
+}
+
+.two-column-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .two-column-grid {
+    grid-template-columns: 1fr;
+  }
+}
