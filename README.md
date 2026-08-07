@@ -4,6 +4,10 @@ An end-to-end autonomous Agentic AI system built with **Node.js**, **TypeScript*
 
 ---
 
+> 📖 **Looking for Code-Level Architecture & Agent Workflow Details?** Check out the comprehensive **[Technical Architecture & Code Deep Dive](docs/ARCHITECTURE.md)** document!
+
+---
+
 ## 📖 Project Description
 
 The **AI Job Opportunity Agent** is an enterprise-grade autonomous multi-agent AI system designed to automate a candidate's recruiter email workflow end-to-end. Built with a modular micro-agent state machine, the system continuously monitors incoming recruiter communications, evaluates business rules, attaches tailored domain PDF resumes, sends personalized auto-replies, books interview slots on Google Calendar, and visualizes live pipeline execution in real time via an interactive Angular Web Dashboard.
