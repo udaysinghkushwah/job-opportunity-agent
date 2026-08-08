@@ -17,7 +17,7 @@ The **AI Job Opportunity Agent** is an enterprise-grade autonomous multi-agent A
 - **🧠 8-Stage Micro-Agent Engine**: Modular pipeline architecture (`Listener` ➔ `Analyzer` ➔ `Decision` ➔ `ResumeSelector` ➔ `ReplyGenerator` ➔ `EmailSender` ➔ `Calendar` ➔ `Notifier`).
 - **📄 Smart PDF Resume Selector**: Uses regex word boundaries to analyze incoming job descriptions and match tailored domain PDF resumes (`resume_ai.pdf`, `resume_backend.pdf`, `resume_healthcare.pdf`, `resume_leadership.pdf`).
 - **✍️ Context-Aware LLM Auto-Reply**: Dynamically derives personalized replies addressing specific recruiter names, company roles, and proposed interview dates.
-- **🔍 Smart Recruiter Name Parsing**: Differentiates between sender sign-offs (`Best, Reecha`), From headers (`Pooja Kushwah <pooja@gmail.com>`), and candidate greetings (`Hi Uday`).
+- **🔍 Smart Recruiter Name Parsing**: Differentiates between sender sign-offs (`Best, Reecha`), From headers (`Johan mark <Johan@gmail.com>`), and candidate greetings (`Hi Uday`).
 - **📅 Google Calendar Booking**: Automatically books Google Calendar interview slots when interview availability is requested.
 - **🗄️ MongoDB Atlas Persistent Memory**: Long-term state persistence and history tracking for candidate opportunities.
 - **🎨 Modular Angular Web Dashboard**: Dedicated Angular 17 SPA with real-time SSE execution stream, live agent graph, and email test workbench.
